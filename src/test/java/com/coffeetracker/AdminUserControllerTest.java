@@ -1,70 +1,55 @@
-package com.coffeetracker.controller;
+package com.coffeetracker;
 
-import com.coffeetracker.dto.AdminUserDTO;
+import com.coffeetracker.controller.AdminUserController;
 import com.coffeetracker.dto.AdminUserData;
+import com.coffeetracker.dto.GetAdminUserRequest;
 import com.coffeetracker.service.AdminUserService;
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import static com.coffeetracker.constant.ResponseConstants.Status.STATUS_SUCCESS;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)  // ✅ เปิดใช้งาน Mockito กับ JUnit 5
+@WebMvcTest(controllers = {AdminUserController.class})
 class AdminUserControllerTest {
-
+    @Autowired
     private MockMvc mockMvc;
 
-    @Mock
-    private AdminUserService adminUserService;
+    @Autowired
+    private ObjectMapper objectMapper;
 
-    @InjectMocks
-    private AdminUserController adminUserController;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this); // 🪄 เริ่มต้น Mockito
-        mockMvc = MockMvcBuilders.standaloneSetup(adminUserController).build(); // 🎯 MockMvc ใช้ทดสอบ Controller โดยไม่ต้องโหลด Spring Context
-    }
+    @MockitoBean
+    AdminUserService adminUserService;
 
     @Test
     void givenValidUsername_whenGetAdminUser_thenReturnSuccessResponse() throws Exception {
-        // 📝 Arrange
-        String username = "john.doe";
+        var request = GetAdminUserRequest.builder()
+                .username("john.doe")
+                .build();
         AdminUserData userData = AdminUserData.builder()
-                .username(username)
+                .username(request.getUsername())
                 .fullName("John Doe")
                 .orgName("TechCorp")
                 .email("john.doe@example.com")
                 .build();
 
-        AdminUserDTO responseDto = AdminUserDTO.builder()
-                .status(STATUS_SUCCESS)
-                .data(userData)
-                .build();
+        when(adminUserService.getAdminUserByUsername(any())).thenReturn(userData);
 
-        when(adminUserService.getAdminUserByUsername(username)).thenReturn(userData); // 🪄 Mock Service
-
-        // 🏃‍♂️ Act & ✅ Assert
-        mockMvc.perform(post("/api/admin-user")
+        mockMvc.perform(post("/api/admin-user/get")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\": \"" + username + "\"}"))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(STATUS_SUCCESS))
-                .andExpect(jsonPath("$.data.username").value(username))
+                .andExpect(jsonPath("$.data.username").value(request.getUsername()))
                 .andExpect(jsonPath("$.data.fullName").value("John Doe"))
                 .andExpect(jsonPath("$.data.orgName").value("TechCorp"))
                 .andExpect(jsonPath("$.data.email").value("john.doe@example.com"));
@@ -72,32 +57,30 @@ class AdminUserControllerTest {
 
     @Test
     void givenEmptyUsername_whenGetAdminUser_thenReturnEmptyData() throws Exception {
-        // 📝 Arrange
-        String emptyUsername = "";
+        var request = GetAdminUserRequest.builder().build();
 
-        // 🏃‍♂️ Act & ✅ Assert
-        mockMvc.perform(post("/api/admin-user")
+        mockMvc.perform(post("/api/admin-user/get")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\": \"" + emptyUsername + "\"}"))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(STATUS_SUCCESS))
-                .andExpect(jsonPath("$.data.username").doesNotExist()); // ❗️ต้องไม่เจอ username ใน data
+                .andExpect(jsonPath("$.data.username").doesNotExist());
     }
 
     @Test
     void givenUsernameNotFound_whenGetAdminUser_thenReturnEmptyData() throws Exception {
-        // 📝 Arrange
-        String username = "nonexistent.user";
+        var request = GetAdminUserRequest.builder()
+                .username("nonexistent.user")
+                .build();
 
-        when(adminUserService.getAdminUserByUsername(username)).thenReturn(null); // 🪄 Mock กรณีไม่เจอข้อมูล
+        when(adminUserService.getAdminUserByUsername(any())).thenReturn(null);
 
-        // 🏃‍♂️ Act & ✅ Assert
-        mockMvc.perform(post("/api/admin-user")
+        mockMvc.perform(post("/api/admin-user/get")
                         .header("Authorization", "Bearer token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\": \"" + username + "\"}"))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(STATUS_SUCCESS))
-                .andExpect(jsonPath("$.data.username").doesNotExist()); // ❗️ไม่พบข้อมูล username
+                .andExpect(jsonPath("$.data.username").doesNotExist());
     }
 }

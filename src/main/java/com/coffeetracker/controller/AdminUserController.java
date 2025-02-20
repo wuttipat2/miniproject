@@ -2,9 +2,12 @@ package com.coffeetracker.controller;
 
 import com.coffeetracker.dto.AdminUserDTO;
 import com.coffeetracker.dto.AdminUserData;
+import com.coffeetracker.dto.CreateAdminUserRequest;
+import com.coffeetracker.dto.GetAdminUserRequest;
 import com.coffeetracker.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -18,18 +21,15 @@ public class AdminUserController {
 
     private final AdminUserService adminUserService;
 
-    // ✅ POST: ดึงข้อมูล Admin ตาม username
-    @PostMapping
+    @PostMapping("/get")
     public ResponseEntity<AdminUserDTO> getAdminUser(
 //            @RequestHeader("Authorization") String authToken,
 //            @RequestHeader(value = "Accept-Language", defaultValue = "EN") String language,
-            @RequestBody Map<String, String> requestBody) {
+            @RequestBody GetAdminUserRequest request) {
 
-        // ✅ ดึงค่า username จาก request body
-        String username = requestBody.get("username");
+        String username = request.getUsername();
 
-        // ✅ ตรวจสอบว่า username มีค่าหรือไม่
-        if (username == null || username.isEmpty()) {
+        if (ObjectUtils.isEmpty(username)) {
             return ResponseEntity.ok(AdminUserDTO
                     .builder()
                     .status(STATUS_SUCCESS)
@@ -39,21 +39,9 @@ public class AdminUserController {
 
         var adminUserData = adminUserService.getAdminUserByUsername(username);
 
-        // ✅ ถ้าไม่พบข้อมูล user → data เป็น object ว่าง
-        if (adminUserData == null) {
+        if (ObjectUtils.isEmpty(adminUserData)) {
             return ResponseEntity.ok(AdminUserDTO
                     .builder()
-                    .status(STATUS_SUCCESS)
-                    .data(new AdminUserData())
-                    .build());
-        }
-
-        // ✅ เรียก Service เพื่อดึงข้อมูล User
-        var AdminUserData = adminUserService.getAdminUserByUsername(username);
-
-        // ✅ ถ้าไม่เจอใน Database → คืน data ว่าง
-        if (adminUserData == null) {
-            return ResponseEntity.ok(AdminUserDTO.builder()
                     .status(STATUS_SUCCESS)
                     .data(new AdminUserData())
                     .build());
@@ -62,7 +50,17 @@ public class AdminUserController {
         return ResponseEntity.ok(AdminUserDTO
                 .builder()
                 .status(STATUS_SUCCESS)
-                .data(AdminUserData)
+                .data(adminUserData)
                 .build());
+    }
+
+    @PostMapping("/save")
+    public ResponseEntity<Integer> createAdminUser(
+//            @RequestHeader("Authorization") String authToken,
+//            @RequestHeader(value = "Accept-Language", defaultValue = "EN") String language,
+            @RequestBody CreateAdminUserRequest request) {
+        var response = adminUserService.createAdminUser(request);
+
+        return ResponseEntity.ok(response);
     }
 }

@@ -14,3 +14,6 @@ public class AdminUserDTO extends ApplicationResponse {
 
 
 }
+
+// Response
+// DTO => data
